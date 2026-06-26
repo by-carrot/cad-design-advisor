@@ -1,0 +1,211 @@
+{
+  "patterns": [
+    {
+      "id": "cantilever_snap",
+      "name": "Cantilever Snap Fit",
+      "description": "A flexible arm with a catch feature that deflects during assembly and springs back to lock. Most common joining pattern for cosmetic casings.",
+      "sources": [
+        "Bayer MaterialScience LLC, Snap-fit joints for plastics - a design guide, Pittsburgh (2013). Full text at fab.cba.mit.edu/classes/S62.12/people/vernelle.noel/Plastic_Snap_fit_design.pdf"
+      ],
+      "product_types": ["cosmetic_casing", "electronics_enclosure", "consumer_product"],
+      "production_methods": ["injection_molding", "resin_casting", "fdm_printing"],
+      "volume_range": {"min": 1, "max": 1000000},
+      "budget_tier": ["low", "medium", "high"],
+      "materials": ["ABS", "PP", "PC", "Nylon_PA6", "TPE"],
+      "assembly_direction": "perpendicular_to_arm",
+      "geometry_params": {
+        "arm_length_mm": {"min": 5, "max": 30},
+        "arm_thickness_root_mm": {"min": 0.8, "max": 3.5},
+        "arm_thickness_tip_mm_ratio": 0.5,
+        "taper_note": "Thickness should decrease linearly from root to tip at a 0.5 ratio. This increases permissible deflection by over 60% vs a constant cross-section arm and reduces material use. Source: Bayer guide p.11.",
+        "catch_depth_mm": {"min": 0.3, "max": 1.5},
+        "deflection_angle_deg": {"min": 3, "max": 10},
+        "root_radius_min_mm": 0.38,
+        "root_radius_note": "Root radius must not be less than 0.38mm (0.015 inch). Below this threshold stress concentration rises sharply. Source: Bayer guide p.8.",
+        "permissible_strain_by_material": {
+          "PC": {"single_assembly_pct": 4.0, "frequent_assembly_pct": 2.4},
+          "PC_ABS": {"single_assembly_pct": 2.5, "frequent_assembly_pct": 1.5},
+          "ABS": {"single_assembly_pct": 2.5, "frequent_assembly_pct": 1.5},
+          "PP": {"single_assembly_pct": 2.5, "frequent_assembly_pct": 1.5},
+          "strain_note": "For frequent separation and rejoining, use 60% of the single-assembly strain value. Source: Bayer guide Table 2, p.11."
+        }
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 20,
+        "preferred_face_normal": "vertical"
+      },
+      "pros": ["low tooling cost", "no assembly tools required", "repeatable"],
+      "cons": ["stress whitening on dark colors", "limited cycle life at frequent use", "not waterproof"],
+      "fusion_360_notes": "Extrude the arm from the inner wall face. Taper the arm thickness linearly from root to tip at 0.5 ratio. Add a 3 degree draft to the arm sides. Add a fillet of at least 0.4mm at the root. The catch is a small triangular extrusion at the arm tip.",
+      "cosmetic_sensitivity": "high"
+    },
+    {
+      "id": "annular_snap",
+      "name": "Annular Snap Fit",
+      "description": "A circumferential bead or groove that snaps over a mating rim. Ideal for circular cosmetic caps like lipstick or compact cases.",
+      "sources": [
+        "Bayer MaterialScience LLC, Snap-fit joints for plastics - a design guide, Pittsburgh (2013). Annular snap joint section D, pp.21-24. Full text at fab.cba.mit.edu/classes/S62.12/people/vernelle.noel/Plastic_Snap_fit_design.pdf"
+      ],
+      "product_types": ["cosmetic_casing", "bottle_cap", "circular_enclosure"],
+      "production_methods": ["injection_molding", "resin_casting"],
+      "volume_range": {"min": 100, "max": 1000000},
+      "budget_tier": ["low", "medium"],
+      "materials": ["ABS", "PP", "TPE", "HDPE"],
+      "assembly_direction": "axial",
+      "geometry_params": {
+        "bead_height_mm": {"min": 0.3, "max": 0.75},
+        "bead_height_note": "Permissible undercut is calculated as y_pm = strain_pm x diameter. For a 30mm PP cap (strain 2.5%): y_pm = 0.025 x 30 = 0.75mm. Scale with diameter and material strain. Source: Bayer guide p.21.",
+        "bead_radius_mm": {"min": 0.2, "max": 0.8},
+        "undercut_angle_deg": {"min": 30, "max": 60},
+        "engagement_length_mm": {"min": 1.0, "max": 4.0},
+        "groove_placement_note": "A groove placed far from the tube end produces mating forces up to 3x higher than one placed near the end. For cosmetic casings, always place the groove near the open rim. Source: Bayer guide p.23."
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 50,
+        "preferred_face_normal": "horizontal",
+        "geometry_type": "circular"
+      },
+      "pros": ["clean exterior appearance", "360 degree engagement", "high retention force"],
+      "cons": ["requires flexible material", "difficult to tool with no side action", "hard to open intentionally", "mating force triples if groove is placed away from the rim"],
+      "fusion_360_notes": "Revolve the bead profile around the central axis. Place the bead groove as close to the open rim as possible to minimize mating force. Undercut angle determines retention vs opening force. Add a lead-in chamfer on the mating part.",
+      "cosmetic_sensitivity": "low"
+    },
+    {
+      "id": "press_fit",
+      "name": "Press Fit",
+      "description": "Interference fit where one part is slightly larger than the mating cavity, creating friction retention on assembly.",
+      "sources": [
+        "Jiga.io, Press Fit Tolerances: A comprehensive guide (2025). URL: jiga.io/articles/press-fit-tolerances",
+        "ScienceDirect Topics, Interference Fit overview. URL: sciencedirect.com/topics/engineering/interference-fit"
+      ],
+      "product_types": ["cosmetic_casing", "electronics_enclosure", "insert_assembly"],
+      "production_methods": ["injection_molding", "resin_casting", "fdm_printing", "cnc"],
+      "volume_range": {"min": 1, "max": 1000000},
+      "budget_tier": ["low", "medium", "high"],
+      "materials": ["ABS", "PC", "Nylon_PA6", "Brass", "Steel"],
+      "assembly_direction": "axial",
+      "geometry_params": {
+        "interference_mm": {
+          "plastic_on_plastic": {"min": 0.05, "max": 0.15},
+          "plastic_on_metal": {"min": 0.05, "max": 0.3},
+          "interference_note": "Plastic-on-plastic pairings risk creep and stress relaxation over time. Use light interference (0.05-0.15mm) only. Heavier interference is acceptable for plastic-on-metal. Source: Jiga press fit guide; ScienceDirect interference fit overview."
+        },
+        "engagement_length_mm": {"min": 3, "max": 15},
+        "lead_in_chamfer_deg": 15
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 10,
+        "preferred_face_normal": "any"
+      },
+      "pros": ["no visible fasteners", "simple geometry", "works for mixed materials"],
+      "cons": ["tight tolerance required", "not easily disassembled", "plastic-on-plastic creep reduces retention force over time"],
+      "fusion_360_notes": "Offset the mating face inward by the interference value. Add a 15 degree chamfer lead-in on the inserted part. Engagement length should be at least 1.5x the diameter. Use 0.05-0.15mm interference for plastic-on-plastic only.",
+      "cosmetic_sensitivity": "low"
+    },
+    {
+      "id": "living_hinge",
+      "name": "Living Hinge",
+      "description": "A thin flexible section of the same material connecting two rigid parts, acting as a hinge without separate hardware.",
+      "sources": [
+        "Fictiv, Living Hinge Design: How to Design a Living Hinge (2025). URL: fictiv.com/articles/how-to-design-living-hinges",
+        "Glenn Beall, By Design: Polypropylene part design Part 2 Living hinges, Plastics Today (2002). URL: plasticstoday.com/materials/by-design-polypropylene-part-design-part-2-living-hinges"
+      ],
+      "product_types": ["cosmetic_casing", "flip_top_cap", "compact_case"],
+      "production_methods": ["injection_molding"],
+      "volume_range": {"min": 1000, "max": 1000000},
+      "budget_tier": ["low", "medium"],
+      "materials": ["PP", "HDPE"],
+      "materials_note": "PP homopolymer is strongly preferred. PP random copolymer is the second choice. HDPE is acceptable but less common. ABS, PC, and Nylon are not suitable for living hinges. Source: Fictiv living hinge guide.",
+      "assembly_direction": "rotational",
+      "geometry_params": {
+        "hinge_thickness_mm": {"min": 0.2, "max": 0.38},
+        "hinge_thickness_note": "Thickness must not exceed 0.38mm (0.015 inch). Above this threshold molecular orientation decreases sharply and flex life shortens because surface elongation during bending exceeds the elastic limit of the material. Thinner is stronger for this feature. Source: Beall, Plastics Today; Fictiv guide.",
+        "hinge_thickness_formula": "T = H/5 to H/8, where T is hinge thickness and H is the thickness of the adjoining rigid wall. Source: Fictiv living hinge guide.",
+        "hinge_width_mm": {"min": 3, "max": 20},
+        "hinge_length_formula": "L = pi x R for a 180 degree bend, where L is the neutral axis span and R is the radius of curvature. This distributes stress evenly and minimizes stress at the attachment point. Source: Fictiv living hinge guide.",
+        "radius_mm": {"min": 0.5, "max": 1.5},
+        "land_length_mm": {"min": 0.5, "max": 1.5},
+        "max_continuous_hinge_length_mm": 152,
+        "long_hinge_note": "Hinges longer than 6 inches (152mm) should be split into two or more sections to improve flex life. Source: Fictiv living hinge guide."
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 15,
+        "preferred_face_normal": "horizontal"
+      },
+      "pros": ["single part assembly", "zero hardware cost", "millions of cycles in PP with correct design"],
+      "cons": ["PP or HDPE only", "injection molding only at production volumes", "gate placement is critical and affects flex life", "requires post-mold cold drawing"],
+      "post_mold_note": "Immediately after molding, flex the hinge several times. This cold-draws the plastic and significantly increases service life. Source: Fictiv living hinge guide.",
+      "fusion_360_notes": "Model as a single body. The hinge section is a thin band at T = H/5 to H/8. Add a concave radius on both faces of the hinge. Include recessed flat shoulders on either side so the hinge bends at center. Gate must be placed to push material through the hinge on the first shot to orient molecules perpendicular to the hinge axis.",
+      "cosmetic_sensitivity": "medium"
+    },
+    {
+      "id": "bayonet_lock",
+      "name": "Bayonet Lock",
+      "description": "Push and twist locking mechanism using L-shaped channels and mating lugs. Common in cosmetic pump and dropper assemblies.",
+      "sources": [
+        "Seetronic, Bayonet Connector Guide: Coupling Types and Connector Supplier (2025). URL: seetronic.com/blog/what-is-a-bayonet-connector-a-guide-to-quick-disconnect-solutions"
+      ],
+      "product_types": ["cosmetic_casing", "bottle_cap", "pump_assembly"],
+      "production_methods": ["injection_molding", "cnc"],
+      "volume_range": {"min": 500, "max": 1000000},
+      "budget_tier": ["medium", "high"],
+      "materials": ["ABS", "PC", "Nylon_PA6", "Brass"],
+      "assembly_direction": "axial_then_rotational",
+      "geometry_params": {
+        "lug_height_mm": {"min": 1.0, "max": 4.0},
+        "lug_width_mm": {"min": 2.0, "max": 8.0},
+        "channel_depth_mm": {"min": 1.0, "max": 3.0},
+        "rotation_angle_deg": {"min": 60, "max": 120},
+        "rotation_angle_note": "Typical rotation is 60 to 120 degrees. Cosmetic packaging often uses shorter rotations near 60 degrees for one-hand operation. Source: Seetronic bayonet connector guide.",
+        "number_of_lugs": {"min": 2, "max": 4},
+        "rotational_clearance_per_side_mm": 0.2
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 80,
+        "preferred_face_normal": "horizontal",
+        "geometry_type": "circular"
+      },
+      "pros": ["secure positive lock", "tool-free", "premium tactile feel", "clear engagement feedback"],
+      "cons": ["complex tooling", "higher unit cost", "requires rotational clearance", "not suitable for square or non-circular geometry"],
+      "fusion_360_notes": "Model the L-channel as a swept cut along the inner cylindrical face. Lugs are rectangular extrusions on the mating part. Ensure rotational clearance of at least 0.2mm per side. Target rotation angle of 60-90 degrees for cosmetic packaging.",
+      "cosmetic_sensitivity": "low"
+    },
+    {
+      "id": "threaded_insert",
+      "name": "Heat Set Threaded Insert",
+      "description": "Brass insert pressed into a plastic boss using heat, providing durable metal threads for screw assembly.",
+      "sources": [
+        "PennEngineering, SI Threaded Inserts for Plastics datasheet (2022). Hole preparation guidelines section. URL: pemnet.com/wp-content/uploads/sites/9/2022/06/sidata.pdf",
+        "PennEngineering, Four Ways To Tackle Threaded Inserts For Plastics (2024). URL: pemnet.com/products/engineering-guides/four-ways-to-tackle-threaded-inserts-for-plastics"
+      ],
+      "product_types": ["cosmetic_casing", "electronics_enclosure", "structural_assembly"],
+      "production_methods": ["injection_molding", "resin_casting", "fdm_printing"],
+      "volume_range": {"min": 1, "max": 100000},
+      "budget_tier": ["medium", "high"],
+      "materials": ["ABS", "PC", "Nylon_PA6", "PLA"],
+      "assembly_direction": "axial",
+      "geometry_params": {
+        "boss_outer_diameter_ratio": 2.0,
+        "boss_diameter_note": "Boss outer diameter must be 2x the insert outer diameter. This ratio is explicitly specified in PennEngineering SI insert hole preparation guidelines and has been tested in ABS and polycarbonate. Source: PennEngineering SI datasheet.",
+        "boss_height_mm": {"min": 4, "max": 12},
+        "insert_diameter_mm": {"min": 2, "max": 8},
+        "min_wall_thickness_by_insert_size": {
+          "M1_to_M1_2_mm": 0.7,
+          "M1_4_to_M1_6_mm": 0.8,
+          "M2_mm": 1.6,
+          "wall_note": "Minimum boss wall thickness values are from PennEngineering SI insert performance data tested in ABS and polycarbonate. Thinner walls reduce pullout and torque-out resistance. Source: PennEngineering SI datasheet SI-9."
+        },
+        "hole_diameter_offset_mm": -0.1,
+        "hole_diameter_note": "Pre-formed hole is slightly smaller than insert OD so the insert displaces and bonds with the melted resin during heat staking. Actual offset per insert size is specified in the PennEngineering dimensional charts. Source: PennEngineering SI datasheet."
+      },
+      "surface_requirements": {
+        "min_flat_area_mm2": 30,
+        "preferred_face_normal": "any"
+      },
+      "pros": ["high pull-out strength", "reusable metal threads", "works at low volume", "accommodates frequent disassembly"],
+      "cons": ["adds hardware cost", "requires heat tool or ultrasonic press", "visible screw head on exterior", "boss adds wall mass and potential sink risk"],
+      "fusion_360_notes": "Boss outer diameter equals 2x the insert outer diameter. Hole diameter equals insert OD minus 0.1mm. Add a 0.5mm minimum fillet at the base of the boss. Boss height should accommodate full insert length plus 0.5mm clearance at bottom.",
+      "cosmetic_sensitivity": "medium"
+    }
+  ]
+}
