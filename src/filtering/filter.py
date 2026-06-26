@@ -19,6 +19,11 @@ def filter_patterns(
 ) -> list[dict]:
     patterns = load_patterns()
     results = []
+    
+    material = material.upper()
+    product_type = product_type.lower()
+    production_method = production_method.lower()
+    budget_tier = budget_tier.lower()
 
     for pattern in patterns:
         if product_type not in pattern["product_types"]:
