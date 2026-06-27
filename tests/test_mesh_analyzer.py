@@ -72,3 +72,41 @@ def test_analyze_mesh_detects_planes(tmp_path):
     mesh.export(str(path))
     result = analyze_mesh(str(path))
     assert result["plane_count"] == 6
+
+
+def test_split_bodies_finds_two_components(tmp_path):
+    box1 = trimesh.creation.box(extents=[20, 20, 10])
+    box1.apply_translation([0, 0, 0])
+    box2 = trimesh.creation.box(extents=[20, 20, 5])
+    box2.apply_translation([0, 0, 20])
+    combined = trimesh.util.concatenate([box1, box2])
+    path = tmp_path / "combined.stl"
+    combined.export(str(path))
+    from src.geometry.mesh_analyzer import split_bodies
+    result = split_bodies(str(path))
+    assert "error" not in result
+    assert result["body_count"] == 2
+    assert result["main_body"]["volume_mm3"] > result["cap"]["volume_mm3"]
+
+
+def test_split_bodies_identifies_larger_as_main(tmp_path):
+    box1 = trimesh.creation.box(extents=[30, 30, 15])
+    box2 = trimesh.creation.box(extents=[10, 10, 5])
+    box2.apply_translation([0, 0, 40])
+    combined = trimesh.util.concatenate([box1, box2])
+    path = tmp_path / "combined.stl"
+    combined.export(str(path))
+    from src.geometry.mesh_analyzer import split_bodies
+    result = split_bodies(str(path))
+    assert result["main_body"]["volume_mm3"] > result["cap"]["volume_mm3"]
+
+
+def test_detect_parting_line_finds_opposing_faces():
+    body = trimesh.creation.box(extents=[30, 20, 10])
+    cap = trimesh.creation.box(extents=[30, 20, 5])
+    cap.apply_translation([0, 0, 15])
+    from src.geometry.mesh_analyzer import detect_parting_line
+    result = detect_parting_line(body, cap)
+    assert "error" not in result
+    assert result["body_parting_face"] is not None
+    assert result["cap_parting_face"] is not None

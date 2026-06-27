@@ -113,3 +113,80 @@ def analyze_mesh(file_path: str) -> dict:
         "mating_surfaces": mating_surfaces,
         "plane_count": len(planes),
     }
+
+def split_bodies(file_path: str) -> dict:
+    mesh = load_mesh(file_path)
+    bodies = trimesh.graph.split(mesh, only_watertight=False)
+
+    if len(bodies) < 2:
+        return {
+            "error": "Could not detect two separate bodies. Ensure the two parts are not touching in the STL.",
+            "body_count": len(bodies),
+        }
+
+    bodies_sorted = sorted(bodies, key=lambda b: b.volume, reverse=True)
+    main_body = bodies_sorted[0]
+    cap = bodies_sorted[1]
+
+    return {
+        "body_count": len(bodies),
+        "main_body": {
+            "volume_mm3": round(float(main_body.volume), 2),
+            "face_count": len(main_body.faces),
+            "bounds": main_body.bounds.tolist(),
+            "mesh": main_body,
+        },
+        "cap": {
+            "volume_mm3": round(float(cap.volume), 2),
+            "face_count": len(cap.faces),
+            "bounds": cap.bounds.tolist(),
+            "mesh": cap,
+        },
+    }
+
+
+def detect_parting_line(body_mesh: trimesh.Trimesh, cap_mesh: trimesh.Trimesh) -> dict:
+    body_planes = detect_flat_planes(body_mesh, min_area_mm2=10.0)
+    cap_planes = detect_flat_planes(cap_mesh, min_area_mm2=10.0)
+
+    if not body_planes or not cap_planes:
+        return {"error": "Could not detect flat planes on one or both bodies."}
+
+    best_body_plane = None
+    best_cap_plane = None
+    best_score = float("inf")
+
+    for bp in body_planes:
+        for cp in cap_planes:
+            normals_opposing = np.dot(bp["normal"], cp["normal"]) < -0.9
+            if not normals_opposing:
+                continue
+            z_distance = abs(bp["centroid"][2] - cp["centroid"][2])
+            xy_distance = np.sqrt(
+                (bp["centroid"][0] - cp["centroid"][0]) ** 2 +
+                (bp["centroid"][1] - cp["centroid"][1]) ** 2
+            )
+            score = z_distance + xy_distance * 0.5
+            if score < best_score:
+                best_score = score
+                best_body_plane = bp
+                best_cap_plane = cp
+
+    if best_body_plane is None:
+        return {"error": "Could not find opposing mating faces between the two bodies."}
+
+    return {
+        "body_parting_face": {
+            "normal": best_body_plane["normal"],
+            "area_mm2": best_body_plane["area_mm2"],
+            "centroid": best_body_plane["centroid"],
+            "face_count": best_body_plane["face_count"],
+        },
+        "cap_parting_face": {
+            "normal": best_cap_plane["normal"],
+            "area_mm2": best_cap_plane["area_mm2"],
+            "centroid": best_cap_plane["centroid"],
+            "face_count": best_cap_plane["face_count"],
+        },
+        "separation_distance_mm": round(best_score, 2),
+    }
