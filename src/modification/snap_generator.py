@@ -13,14 +13,46 @@ def generate_cantilever_snap(
     face_normal: list[float],
 ) -> cq.Workplane:
     tip_thickness = arm_thickness_root_mm * 0.5
+    root_radius = max(0.38, arm_thickness_root_mm * 0.3)
 
-    snap = (
-        cq.Workplane("XY")
+    points = [
+        (0, 0),
+        (arm_width_mm, 0),
+        (arm_width_mm, arm_thickness_root_mm),
+        (0, arm_thickness_root_mm),
+    ]
+
+    arm = (
+        cq.Workplane("XZ")
         .transformed(offset=cq.Vector(*placement_point))
-        .box(arm_width_mm, arm_length_mm, arm_thickness_root_mm, centered=(True, False, False))
+        .polyline([
+            (0, 0),
+            (0, arm_thickness_root_mm),
+            (arm_length_mm, tip_thickness),
+            (arm_length_mm, 0),
+        ])
+        .close()
+        .extrude(arm_width_mm)
     )
 
-    return snap
+    catch = (
+        cq.Workplane("XZ")
+        .transformed(offset=cq.Vector(
+            placement_point[0],
+            placement_point[1],
+            placement_point[2]
+        ))
+        .polyline([
+            (arm_length_mm, 0),
+            (arm_length_mm + catch_depth_mm, tip_thickness / 2),
+            (arm_length_mm, tip_thickness),
+        ])
+        .close()
+        .extrude(arm_width_mm)
+    )
+
+    result = arm.union(catch)
+    return result
 
 
 def generate_annular_snap(
