@@ -13,18 +13,10 @@ def generate_cantilever_snap(
     face_normal: list[float],
 ) -> cq.Workplane:
     tip_thickness = arm_thickness_root_mm * 0.5
-    root_radius = max(0.38, arm_thickness_root_mm * 0.3)
-
-    points = [
-        (0, 0),
-        (arm_width_mm, 0),
-        (arm_width_mm, arm_thickness_root_mm),
-        (0, arm_thickness_root_mm),
-    ]
+    catch_height = catch_depth_mm
 
     arm = (
         cq.Workplane("XZ")
-        .transformed(offset=cq.Vector(*placement_point))
         .polyline([
             (0, 0),
             (0, arm_thickness_root_mm),
@@ -37,14 +29,9 @@ def generate_cantilever_snap(
 
     catch = (
         cq.Workplane("XZ")
-        .transformed(offset=cq.Vector(
-            placement_point[0],
-            placement_point[1],
-            placement_point[2]
-        ))
         .polyline([
             (arm_length_mm, 0),
-            (arm_length_mm + catch_depth_mm, tip_thickness / 2),
+            (arm_length_mm + catch_height, tip_thickness / 2),
             (arm_length_mm, tip_thickness),
         ])
         .close()
@@ -52,6 +39,27 @@ def generate_cantilever_snap(
     )
 
     result = arm.union(catch)
+
+    normal = np.array(face_normal, dtype=float)
+    normal = normal / np.linalg.norm(normal)
+    default_normal = np.array([0, 0, 1], dtype=float)
+
+    rotation_axis = np.cross(default_normal, normal)
+    axis_norm = np.linalg.norm(rotation_axis)
+
+    if axis_norm > 1e-6:
+        rotation_axis = rotation_axis / axis_norm
+        angle_rad = float(np.arccos(np.clip(np.dot(default_normal, normal), -1.0, 1.0)))
+        angle_deg = float(np.degrees(angle_rad))
+        result = result.rotate(
+            (0, 0, 0),
+            tuple(rotation_axis.tolist()),
+            angle_deg,
+        )
+
+    px, py, pz = placement_point
+    result = result.translate((px, py, pz))
+
     return result
 
 
