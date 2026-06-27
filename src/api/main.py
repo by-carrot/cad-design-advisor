@@ -10,6 +10,7 @@ from src.modification.snap_generator import generate_snap_for_surface
 from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from src.geometry.mesh_analyzer import split_bodies, detect_parting_line
 
 app = FastAPI()
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
@@ -120,7 +121,39 @@ async def analyze(
     with open(input_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    mesh_analysis = analyze_mesh(str(input_path))
+    split_result = split_bodies(str(input_path))
+
+    if "error" in split_result:
+        mesh_analysis = analyze_mesh(str(input_path))
+        split_mode = False
+    else:
+        split_mode = True
+        body_mesh = split_result["main_body"]["mesh"]
+        cap_mesh = split_result["cap"]["mesh"]
+        parting_line = detect_parting_line(body_mesh, cap_mesh)
+        mesh_analysis = {
+            "dimensions": analyze_mesh(str(input_path))["dimensions"],
+            "volume_mm3": analyze_mesh(str(input_path))["volume_mm3"],
+            "face_count": analyze_mesh(str(input_path))["face_count"],
+            "is_watertight": analyze_mesh(str(input_path))["is_watertight"],
+            "plane_count": analyze_mesh(str(input_path))["plane_count"],
+            "body_count": split_result["body_count"],
+            "main_body": {
+                "volume_mm3": split_result["main_body"]["volume_mm3"],
+                "face_count": split_result["main_body"]["face_count"],
+            },
+            "cap": {
+                "volume_mm3": split_result["cap"]["volume_mm3"],
+                "face_count": split_result["cap"]["face_count"],
+            },
+            "parting_line": parting_line,
+            "mating_surfaces": {
+                "recommended_snap_face": parting_line.get("body_parting_face"),
+                "top_face": parting_line.get("body_parting_face"),
+                "bottom_face": parting_line.get("cap_parting_face"),
+                "largest_vertical_face": None,
+            },
+        }
 
     patterns = filter_patterns(
         product_type=product_type,
@@ -158,6 +191,7 @@ async def analyze(
 
     return {
         "file_id": file_id,
+        "split_mode": split_mode,
         "mesh_analysis": clean_mesh_analysis(mesh_analysis),
         "patterns": patterns,
         "interpretation": interpretation,

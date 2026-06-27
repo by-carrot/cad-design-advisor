@@ -274,15 +274,33 @@
       const m = data.mesh_analysis;
       const recs = data.interpretation?.ranked_recommendations || [];
 
-      let html = `
-        <h2>Mesh Summary</h2>
-        <div class="mesh-info">
-          <div class="mesh-stat"><div class="value">${m.dimensions.x_mm} x ${m.dimensions.y_mm} x ${m.dimensions.z_mm}</div><div class="key">Dimensions (mm)</div></div>
-          <div class="mesh-stat"><div class="value">${m.face_count.toLocaleString()}</div><div class="key">Faces</div></div>
-          <div class="mesh-stat"><div class="value">${m.is_watertight ? 'Yes' : 'No'}</div><div class="key">Watertight</div></div>
-        </div>
-        <h2>Pattern Recommendations</h2>
-      `;
+      let meshHtml = '';
+      if (data.split_mode && m.main_body) {
+        meshHtml = `
+          <h2>Assembly Analysis</h2>
+          <div class="mesh-info">
+            <div class="mesh-stat"><div class="value">${m.dimensions.x_mm} x ${m.dimensions.y_mm} x ${m.dimensions.z_mm}</div><div class="key">Dimensions (mm)</div></div>
+            <div class="mesh-stat"><div class="value">${m.body_count}</div><div class="key">Bodies Detected</div></div>
+            <div class="mesh-stat"><div class="value">${m.is_watertight ? 'Yes' : 'No'}</div><div class="key">Watertight</div></div>
+          </div>
+          <div class="mesh-info">
+            <div class="mesh-stat"><div class="value">${m.main_body.volume_mm3.toLocaleString()}</div><div class="key">Body Volume (mm³)</div></div>
+            <div class="mesh-stat"><div class="value">${m.cap.volume_mm3.toLocaleString()}</div><div class="key">Cap Volume (mm³)</div></div>
+            <div class="mesh-stat"><div class="value">${m.parting_line?.separation_distance_mm ?? 'N/A'}</div><div class="key">Parting Line Score</div></div>
+          </div>
+        `;
+      } else {
+        meshHtml = `
+          <h2>Mesh Summary</h2>
+          <div class="mesh-info">
+            <div class="mesh-stat"><div class="value">${m.dimensions.x_mm} x ${m.dimensions.y_mm} x ${m.dimensions.z_mm}</div><div class="key">Dimensions (mm)</div></div>
+            <div class="mesh-stat"><div class="value">${m.face_count.toLocaleString()}</div><div class="key">Faces</div></div>
+            <div class="mesh-stat"><div class="value">${m.is_watertight ? 'Yes' : 'No'}</div><div class="key">Watertight</div></div>
+          </div>
+        `;
+      }
+
+      let html = meshHtml + '<h2>Pattern Recommendations</h2>';
 
       recs.forEach(r => {
         html += `
