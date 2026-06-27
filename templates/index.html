@@ -316,8 +316,49 @@
         `;
       });
 
-      document.getElementById('results').innerHTML = html;
+      if (data.validation && data.validation.snap_features_detected > 0) {
+        html += `<h2>Snap Feature Validation</h2>`;
+        data.validation.validations.forEach((v, i) => {
+            const status = v.passed ? '✓ Pass' : '✗ Fail';
+            const statusColor = v.passed ? '#88cc88' : '#ff6b6b';
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="rank" style="background:${statusColor}22;color:${statusColor}">${status}</span>
+                        <h3>Snap Feature ${i + 1}</h3>
+                    </div>
+                    <p>Arm length: ${v.measurements.arm_length_mm}mm &nbsp;|&nbsp; Root thickness: ${v.measurements.root_thickness_mm}mm &nbsp;|&nbsp; Tip ratio: ${v.measurements.tip_thickness_ratio}</p>
+                    ${v.violations.map(viol => `<div class="risk">⚠ ${viol}</div>`).join('')}
+                    ${v.warnings.map(w => `<div class="risk" style="border-color:#ffaa4444;background:#ffaa4411;color:#ffcc88">ℹ ${w}</div>`).join('')}
+                </div>
+            `;
+        });
+    } else if (data.validation) {
+        html += `
+            <h2>Snap Feature Validation</h2>
+            <div class="card"><p>${data.validation.message || 'No snap features detected on the mating surface.'}</p></div>
+        `;
     }
+
+    if (data.correction && data.correction.correction_needed) {
+        html += `
+            <h2>Corrected Geometry</h2>
+            <div class="card">
+                <p>Violations were detected and a corrected snap feature has been generated.</p>
+                <div class="fusion-steps">
+                    Corrected dimensions: arm length ${data.correction.corrected_dimensions.arm_length_mm}mm,
+                    root thickness ${data.correction.corrected_dimensions.root_thickness_mm}mm,
+                    tip thickness ${data.correction.corrected_dimensions.tip_thickness_mm}mm,
+                    catch depth ${data.correction.corrected_dimensions.catch_depth_mm}mm.
+                </div>
+            </div>
+        `;
+        const corrFilename = data.correction.output_file.replace(/\\/g, '/').split('/').pop();
+        window.loadSTLIntoViewer(`/outputs/${corrFilename}`);
+    }
+
+    document.getElementById('results').innerHTML = html;
+  }
   </script>
 </body>
 </html>

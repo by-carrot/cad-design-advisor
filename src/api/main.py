@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import trimesh
 from src.filtering.filter import filter_patterns
 from src.api.interpreter import interpret
 import shutil
@@ -11,6 +12,11 @@ from pathlib import Path
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from src.geometry.mesh_analyzer import split_bodies, detect_parting_line
+
+from src.geometry.snap_validator import validate_mesh_snaps
+from src.modification.snap_corrector import correct_snap_violations
+
+
 
 app = FastAPI()
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
@@ -170,6 +176,9 @@ async def analyze(
     recommended_surface = mesh_analysis["mating_surfaces"].get("recommended_snap_face")
 
     generated_geometry = None
+    validation_result = None
+    correction_result = None
+
     if recommended_surface:
         output_path = str(output_dir / f"{file_id}_{top_pattern['id']}.stl")
         generated_geometry = generate_snap_for_surface(
@@ -178,6 +187,31 @@ async def analyze(
             geometry_params=top_pattern["geometry_params"],
             output_path=output_path,
         )
+
+        if split_mode:
+            body_mesh = split_result["main_body"]["mesh"]
+        else:
+            body_mesh = trimesh.load(str(input_path))
+            if isinstance(body_mesh, trimesh.Scene):
+                body_mesh = trimesh.util.concatenate(body_mesh.dump())
+
+        validation_result = validate_mesh_snaps(
+            mesh=body_mesh,
+            base_plane=recommended_surface,
+            pattern_id=top_pattern["id"],
+            material=material,
+        )
+
+        if validation_result.get("validations"):
+            first_validation = validation_result["validations"][0]
+            if not first_validation["passed"]:
+                correction_path = str(output_dir / f"{file_id}_corrected.stl")
+                correction_result = correct_snap_violations(
+                    validation_result=first_validation,
+                    placement_point=recommended_surface["centroid"],
+                    material=material,
+                    output_path=correction_path,
+                )
 
     request_dict = {
         "product_type": product_type,
@@ -196,4 +230,6 @@ async def analyze(
         "patterns": patterns,
         "interpretation": interpretation,
         "generated_geometry": generated_geometry,
+        "validation": validation_result,
+        "correction": correction_result,
     }

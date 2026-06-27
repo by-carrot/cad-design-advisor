@@ -147,6 +147,9 @@ def validate_mesh_snaps(mesh: trimesh.Trimesh, base_plane: dict, pattern_id: str
     for p in protrusions:
         if p["height_mm"] < 2.0 or p["face_count"] < 4:
             continue
+        aspect_ratio = p["height_mm"] / max(p["depth_mm"], 0.01)
+        if aspect_ratio < 2.0:
+            continue
         measurements = measure_snap_arm(p)
         if pattern_id == "cantilever_snap":
             result = validate_cantilever_snap(measurements, material)
