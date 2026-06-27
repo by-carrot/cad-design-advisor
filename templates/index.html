@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAD Design Advisor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+    header { padding: 24px 32px; border-bottom: 1px solid #222; }
+    header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+    header p { font-size: 13px; color: #666; margin-top: 4px; }
+    .container { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 73px); }
+    .sidebar { padding: 24px; border-right: 1px solid #222; display: flex; flex-direction: column; gap: 20px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, select { background: #1a1a1a; border: 1px solid #2a2a2a; color: #e0e0e0; padding: 10px 12px; border-radius: 6px; font-size: 14px; width: 100%; }
+    input:focus, select:focus { outline: none; border-color: #444; }
+    .upload-area { border: 2px dashed #2a2a2a; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s; }
+    .upload-area:hover { border-color: #444; }
+    .upload-area p { font-size: 13px; color: #666; }
+    .upload-area.active { border-color: #4a9eff; }
+    button { background: #4a9eff; color: #fff; border: none; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; width: 100%; transition: background 0.2s; }
+    button:hover { background: #3a8eef; }
+    button:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; }
+    .main { display: flex; flex-direction: column; }
+    .viewer { height: 400px; background: #111; border-bottom: 1px solid #222; position: relative; }
+    #canvas { width: 100%; height: 100%; }
+    .viewer-label { position: absolute; top: 12px; left: 16px; font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; }
+    .results { padding: 24px; flex: 1; overflow-y: auto; }
+    .results h2 { font-size: 14px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .rank { background: #4a9eff22; color: #4a9eff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+    .card h3 { font-size: 15px; font-weight: 600; color: #fff; }
+    .card p { font-size: 13px; color: #aaa; line-height: 1.6; margin-bottom: 8px; }
+    .risk { background: #ff6b2222; border: 1px solid #ff6b2244; border-radius: 4px; padding: 8px 12px; font-size: 12px; color: #ff9966; margin-top: 8px; }
+    .fusion-steps { background: #1e2a1e; border: 1px solid #2a3a2a; border-radius: 4px; padding: 10px 12px; font-size: 12px; color: #88cc88; margin-top: 8px; line-height: 1.6; }
+    .mesh-info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .mesh-stat { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; text-align: center; }
+    .mesh-stat .value { font-size: 18px; font-weight: 600; color: #fff; }
+    .mesh-stat .key { font-size: 11px; color: #555; margin-top: 4px; }
+    .status { font-size: 13px; color: #666; padding: 12px 0; }
+    .error { color: #ff6b6b; background: #ff6b2211; border: 1px solid #ff6b2233; border-radius: 6px; padding: 12px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CAD Design Advisor</h1>
+    <p>Upload your part, set your constraints, get assembly pattern recommendations with generated geometry.</p>
+  </header>
+  <div class="container">
+    <div class="sidebar">
+      <div class="field">
+        <label>STL File</label>
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <p id="uploadLabel">Click to upload STL file</p>
+          <input type="file" id="fileInput" accept=".stl" style="display:none" onchange="handleFileSelect(event)" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Product Type</label>
+        <select id="productType">
+          <option value="cosmetic_casing">Cosmetic Casing</option>
+          <option value="electronics_enclosure">Electronics Enclosure</option>
+          <option value="bottle_cap">Bottle Cap</option>
+          <option value="flip_top_cap">Flip Top Cap</option>
+          <option value="compact_case">Compact Case</option>
+          <option value="pump_assembly">Pump Assembly</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Production Method</label>
+        <select id="productionMethod">
+          <option value="injection_molding">Injection Molding</option>
+          <option value="resin_casting">Resin Casting</option>
+          <option value="fdm_printing">FDM Printing</option>
+          <option value="cnc">CNC</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Material</label>
+        <select id="material">
+          <option value="ABS">ABS</option>
+          <option value="PP">PP</option>
+          <option value="PC">PC</option>
+          <option value="Nylon_PA6">Nylon PA6</option>
+          <option value="TPE">TPE</option>
+          <option value="HDPE">HDPE</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Production Volume</label>
+        <input type="number" id="volume" value="1000" min="1" />
+      </div>
+      <div class="field">
+        <label>Budget Tier</label>
+        <select id="budgetTier">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <button id="analyzeBtn" onclick="runAnalysis()" disabled>Upload a file to analyze</button>
+    </div>
+    <div class="main">
+      <div class="viewer">
+        <div class="viewer-label">Generated Snap Geometry</div>
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="results" id="results">
+        <p class="status">Upload an STL file and fill in your constraints to get recommendations.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111111);
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+
+    const camera = new THREE.PerspectiveCamera(45, canvas.offsetWidth / canvas.offsetHeight, 0.1, 1000);
+    camera.position.set(30, 30, 30);
+    camera.lookAt(0, 0, 0);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 10);
+    scene.add(dirLight);
+
+    let isDragging = false;
+    let previousMouse = { x: 0, y: 0 };
+    let spherical = { theta: Math.PI / 4, phi: Math.PI / 4, radius: 50 };
+
+    canvas.addEventListener('mousedown', e => { isDragging = true; previousMouse = { x: e.clientX, y: e.clientY }; });
+    canvas.addEventListener('mouseup', () => isDragging = false);
+    canvas.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - previousMouse.x;
+      const dy = e.clientY - previousMouse.y;
+      spherical.theta -= dx * 0.01;
+      spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi - dy * 0.01));
+      previousMouse = { x: e.clientX, y: e.clientY };
+      updateCamera();
+    });
+    canvas.addEventListener('wheel', e => {
+      spherical.radius = Math.max(5, spherical.radius + e.deltaY * 0.05);
+      updateCamera();
+    });
+
+    function updateCamera() {
+      camera.position.set(
+        spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+        spherical.radius * Math.cos(spherical.phi),
+        spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+      );
+      camera.lookAt(0, 0, 0);
+    }
+
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+    animate();
+
+    window.loadSTLIntoViewer = function(url) {
+      fetch(url)
+        .then(r => r.arrayBuffer())
+        .then(buffer => {
+          const geo = parseSTL(buffer);
+          scene.children = scene.children.filter(c => c.type !== 'Mesh');
+          scene.add(ambient);
+          scene.add(dirLight);
+          const mat = new THREE.MeshStandardMaterial({ color: 0x4a9eff, metalness: 0.1, roughness: 0.6 });
+          const mesh = new THREE.Mesh(geo, mat);
+          scene.add(mesh);
+          geo.computeBoundingBox();
+          const box = geo.boundingBox;
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          mesh.position.sub(center);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          spherical.radius = Math.max(size.x, size.y, size.z) * 2;
+          updateCamera();
+        });
+    };
+
+    function parseSTL(buffer) {
+      const geo = new THREE.BufferGeometry();
+      const view = new DataView(buffer);
+      const numTriangles = view.getUint32(80, true);
+      const positions = new Float32Array(numTriangles * 9);
+      const normals = new Float32Array(numTriangles * 9);
+      let offset = 84;
+      for (let i = 0; i < numTriangles; i++) {
+        const nx = view.getFloat32(offset, true); offset += 4;
+        const ny = view.getFloat32(offset, true); offset += 4;
+        const nz = view.getFloat32(offset, true); offset += 4;
+        for (let v = 0; v < 3; v++) {
+          positions[i * 9 + v * 3] = view.getFloat32(offset, true); offset += 4;
+          positions[i * 9 + v * 3 + 1] = view.getFloat32(offset, true); offset += 4;
+          positions[i * 9 + v * 3 + 2] = view.getFloat32(offset, true); offset += 4;
+          normals[i * 9 + v * 3] = nx;
+          normals[i * 9 + v * 3 + 1] = ny;
+          normals[i * 9 + v * 3 + 2] = nz;
+        }
+        offset += 2;
+      }
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+      return geo;
+    }
+  </script>
+
+  <script>
+    let selectedFile = null;
+
+    function handleFileSelect(event) {
+      selectedFile = event.target.files[0];
+      if (selectedFile) {
+        document.getElementById('uploadLabel').textContent = selectedFile.name;
+        document.getElementById('uploadArea').classList.add('active');
+        document.getElementById('analyzeBtn').disabled = false;
+        document.getElementById('analyzeBtn').textContent = 'Analyze';
+      }
+    }
+
+    async function runAnalysis() {
+      if (!selectedFile) return;
+      const btn = document.getElementById('analyzeBtn');
+      btn.disabled = true;
+      btn.textContent = 'Analyzing...';
+      document.getElementById('results').innerHTML = '<p class="status">Running analysis...</p>';
+
+      const form = new FormData();
+      form.append('file', selectedFile);
+      form.append('product_type', document.getElementById('productType').value);
+      form.append('production_method', document.getElementById('productionMethod').value);
+      form.append('volume', document.getElementById('volume').value);
+      form.append('budget_tier', document.getElementById('budgetTier').value);
+      form.append('material', document.getElementById('material').value);
+
+      try {
+        const res = await fetch('/analyze', { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (data.error) {
+          document.getElementById('results').innerHTML = `<div class="error">${data.error}</div>`;
+          return;
+        }
+
+        renderResults(data);
+
+        if (data.generated_geometry && data.generated_geometry.output_file) {
+          const filename = data.generated_geometry.output_file.replace(/\\/g, '/').split('/').pop();
+          window.loadSTLIntoViewer(`/outputs/${filename}`);
+        }
+
+      } catch (err) {
+        document.getElementById('results').innerHTML = `<div class="error">Request failed: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Analyze';
+      }
+    }
+
+    function renderResults(data) {
+      const m = data.mesh_analysis;
+      const recs = data.interpretation?.ranked_recommendations || [];
+
+      let html = `
+        <h2>Mesh Summary</h2>
+        <div class="mesh-info">
+          <div class="mesh-stat"><div class="value">${m.dimensions.x_mm} x ${m.dimensions.y_mm} x ${m.dimensions.z_mm}</div><div class="key">Dimensions (mm)</div></div>
+          <div class="mesh-stat"><div class="value">${m.face_count.toLocaleString()}</div><div class="key">Faces</div></div>
+          <div class="mesh-stat"><div class="value">${m.is_watertight ? 'Yes' : 'No'}</div><div class="key">Watertight</div></div>
+        </div>
+        <h2>Pattern Recommendations</h2>
+      `;
+
+      recs.forEach(r => {
+        html += `
+          <div class="card">
+            <div class="card-header">
+              <span class="rank">#${r.rank}</span>
+              <h3>${r.name}</h3>
+            </div>
+            <p>${r.rationale}</p>
+            ${r.risks ? `<div class="risk">⚠ ${r.risks}</div>` : ''}
+            ${r.fusion_360_steps ? `<div class="fusion-steps">Fusion 360: ${r.fusion_360_steps}</div>` : ''}
+          </div>
+        `;
+      });
+
+      document.getElementById('results').innerHTML = html;
+    }
+  </script>
+</body>
+</html>

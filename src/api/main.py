@@ -8,8 +8,17 @@ from fastapi import UploadFile, File, Form
 from src.geometry.mesh_analyzer import analyze_mesh
 from src.modification.snap_generator import generate_snap_for_surface
 from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    with open("templates/index.html") as f:
+        return f.read()
 
 VALID_PRODUCT_TYPES = {"cosmetic_casing", "electronics_enclosure", "consumer_product", "bottle_cap", "circular_enclosure", "flip_top_cap", "compact_case", "pump_assembly", "insert_assembly"}
 VALID_PRODUCTION_METHODS = {"injection_molding", "resin_casting", "fdm_printing", "cnc"}
