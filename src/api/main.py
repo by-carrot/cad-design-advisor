@@ -11,6 +11,10 @@ from pathlib import Path
 
 app = FastAPI()
 
+VALID_PRODUCT_TYPES = {"cosmetic_casing", "electronics_enclosure", "consumer_product", "bottle_cap", "circular_enclosure", "flip_top_cap", "compact_case", "pump_assembly", "insert_assembly"}
+VALID_PRODUCTION_METHODS = {"injection_molding", "resin_casting", "fdm_printing", "cnc"}
+VALID_BUDGET_TIERS = {"low", "medium", "high"}
+VALID_MATERIALS = {"ABS", "PP", "PC", "Nylon_PA6", "TPE", "HDPE", "Brass", "Steel", "PLA"}
 
 class DesignRequest(BaseModel):
     product_type: str
@@ -31,11 +35,6 @@ def recommend(request: DesignRequest):
     )
     return {"patterns": patterns}
 
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
 @app.post("/interpret")
 def interpret_patterns(request: DesignRequest):
     patterns = filter_patterns(
@@ -50,6 +49,38 @@ def interpret_patterns(request: DesignRequest):
     result = interpret(request.model_dump(), patterns)
     return result
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+def clean_surface(surface: dict) -> dict:
+    if surface is None:
+        return None
+    return {
+        "normal": surface["normal"],
+        "area_mm2": surface["area_mm2"],
+        "centroid": surface["centroid"],
+        "face_count": surface["face_count"],
+    }
+
+
+def clean_mesh_analysis(analysis: dict) -> dict:
+    surfaces = analysis["mating_surfaces"]
+    return {
+        "dimensions": analysis["dimensions"],
+        "volume_mm3": analysis["volume_mm3"],
+        "face_count": analysis["face_count"],
+        "is_watertight": analysis["is_watertight"],
+        "plane_count": analysis["plane_count"],
+        "mating_surfaces": {
+            "top_face": clean_surface(surfaces.get("top_face")),
+            "bottom_face": clean_surface(surfaces.get("bottom_face")),
+            "largest_vertical_face": clean_surface(surfaces.get("largest_vertical_face")),
+            "recommended_snap_face": clean_surface(surfaces.get("recommended_snap_face")),
+        },
+    }
+
 @app.post("/analyze")
 async def analyze(
     file: UploadFile = File(...),
@@ -63,6 +94,16 @@ async def analyze(
     upload_dir.mkdir(exist_ok=True)
     output_dir = Path("outputs")
     output_dir.mkdir(exist_ok=True)
+
+    material = material.upper()
+    if product_type not in VALID_PRODUCT_TYPES:
+        return {"error": f"Invalid product_type. Valid options: {sorted(VALID_PRODUCT_TYPES)}"}
+    if production_method not in VALID_PRODUCTION_METHODS:
+        return {"error": f"Invalid production_method. Valid options: {sorted(VALID_PRODUCTION_METHODS)}"}
+    if budget_tier not in VALID_BUDGET_TIERS:
+        return {"error": f"Invalid budget_tier. Valid options: {sorted(VALID_BUDGET_TIERS)}"}
+    if material not in VALID_MATERIALS:
+        return {"error": f"Invalid material. Valid options: {sorted(VALID_MATERIALS)}"}
 
     file_id = str(uuid.uuid4())
     input_path = upload_dir / f"{file_id}_{file.filename}"
@@ -108,7 +149,7 @@ async def analyze(
 
     return {
         "file_id": file_id,
-        "mesh_analysis": mesh_analysis,
+        "mesh_analysis": clean_mesh_analysis(mesh_analysis),
         "patterns": patterns,
         "interpretation": interpretation,
         "generated_geometry": generated_geometry,
