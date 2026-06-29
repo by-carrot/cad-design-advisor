@@ -101,6 +101,15 @@
           <option value="high">High</option>
         </select>
       </div>
+      <div class="field">
+        <label>Assembly Type</label>
+        <select id="functionGoal">
+          <option value="semi_permanent">Semi-Permanent</option>
+          <option value="single">Single Assembly</option>
+          <option value="easy_release">Easy Release</option>
+          <option value="frequent">Frequent Open/Close</option>
+        </select>
+      </div>
       <button id="analyzeBtn" onclick="runAnalysis()" disabled>Upload a file to analyze</button>
     </div>
     <div class="main">
@@ -244,6 +253,7 @@
       form.append('production_method', document.getElementById('productionMethod').value);
       form.append('volume', document.getElementById('volume').value);
       form.append('budget_tier', document.getElementById('budgetTier').value);
+      form.append('function_goal', document.getElementById('functionGoal').value);
       form.append('material', document.getElementById('material').value);
 
       try {
@@ -315,6 +325,25 @@
           </div>
         `;
       });
+
+      if (data.generated_geometry && data.generated_geometry.computed_dimensions) {
+        const d = data.generated_geometry.computed_dimensions;
+        html += `
+            <h2>Computed Snap Dimensions</h2>
+            <div class="card">
+                <p>Calculated using Bayer tapered cantilever formula for <strong>${d.material}</strong> at <strong>${d.assembly_type}</strong> assembly type.</p>
+                <div class="fusion-steps">
+                    Arm length: ${d.arm_length_mm}mm &nbsp;|&nbsp;
+                    Root thickness: ${d.root_thickness_mm}mm &nbsp;|&nbsp;
+                    Tip thickness: ${d.tip_thickness_mm}mm &nbsp;|&nbsp;
+                    Root radius: ${d.root_radius_mm}mm &nbsp;|&nbsp;
+                    Catch depth: ${d.catch_depth_mm}mm &nbsp;|&nbsp;
+                    Permissible strain: ${d.permissible_strain} &nbsp;|&nbsp;
+                    Deflection capacity: ${d.deflection_capacity_mm}mm
+                </div>
+            </div>
+        `;
+    }
 
       if (data.validation && data.validation.snap_features_detected > 0) {
         html += `<h2>Snap Feature Validation</h2>`;

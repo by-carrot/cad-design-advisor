@@ -1,6 +1,7 @@
 import cadquery as cq
 import numpy as np
 from pathlib import Path
+from src.geometry.snap_dimensioner import compute_cantilever_dimensions, compute_annular_snap_dimensions
 
 
 def generate_cantilever_snap(
@@ -96,41 +97,48 @@ def generate_snap_for_surface(
     surface: dict,
     geometry_params: dict,
     output_path: str,
+    material: str = "ABS",
+    assembly_type: str = "semi_permanent",
+    wall_thickness_mm: float = 2.0,
+    catch_depth_mm: float = 0.5,
+    diameter_mm: float = 30.0,
 ) -> dict:
     placement_point = surface.get("centroid", [0, 0, 0])
     face_normal = surface.get("normal", [0, 0, 1])
 
     if pattern_id == "cantilever_snap":
-        arm_length = geometry_params.get("arm_length_mm", {})
-        arm_length_val = arm_length.get("min", 10.0) if isinstance(arm_length, dict) else 10.0
-
-        thickness = geometry_params.get("arm_thickness_root_mm", {})
-        thickness_val = thickness.get("min", 1.2) if isinstance(thickness, dict) else 1.2
-
-        catch_depth = geometry_params.get("catch_depth_mm", {})
-        catch_val = catch_depth.get("min", 0.5) if isinstance(catch_depth, dict) else 0.5
-
+        dims = compute_cantilever_dimensions(
+            catch_depth_mm=catch_depth_mm,
+            wall_thickness_mm=wall_thickness_mm,
+            material=material,
+            assembly_type=assembly_type,
+        )
         result = generate_cantilever_snap(
-            arm_length_mm=arm_length_val,
-            arm_thickness_root_mm=thickness_val,
+            arm_length_mm=dims["arm_length_mm"],
+            arm_thickness_root_mm=dims["root_thickness_mm"],
             arm_width_mm=6.0,
-            catch_depth_mm=catch_val,
+            catch_depth_mm=dims["catch_depth_mm"],
             deflection_angle_deg=5.0,
             placement_point=placement_point,
             face_normal=face_normal,
         )
+        computed_dims = dims
 
     elif pattern_id == "annular_snap":
-        bead_height = geometry_params.get("bead_height_mm", {})
-        bead_val = bead_height.get("min", 0.4) if isinstance(bead_height, dict) else 0.4
-
+        dims = compute_annular_snap_dimensions(
+            diameter_mm=diameter_mm,
+            material=material,
+            assembly_type=assembly_type,
+            wall_thickness_mm=wall_thickness_mm,
+        )
         result = generate_annular_snap(
-            diameter_mm=30.0,
-            bead_height_mm=bead_val,
-            bead_radius_mm=0.4,
-            wall_thickness_mm=2.0,
+            diameter_mm=diameter_mm,
+            bead_height_mm=dims["bead_height_mm"],
+            bead_radius_mm=dims["bead_radius_mm"],
+            wall_thickness_mm=wall_thickness_mm,
             placement_point=placement_point,
         )
+        computed_dims = dims
 
     else:
         return {"error": f"Snap generation not yet implemented for pattern: {pattern_id}"}
@@ -142,4 +150,5 @@ def generate_snap_for_surface(
         "output_file": output_file,
         "placement_point": placement_point,
         "face_normal": face_normal,
+        "computed_dimensions": computed_dims,
     }

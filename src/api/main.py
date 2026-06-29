@@ -39,6 +39,7 @@ class DesignRequest(BaseModel):
     volume: int
     budget_tier: str
     material: str
+    function_goal: str = Form("semi_permanent"),
 
 
 @app.post("/recommend")
@@ -187,6 +188,10 @@ async def analyze(
             surface=recommended_surface,
             geometry_params=top_pattern["geometry_params"],
             output_path=output_path,
+            material=material,
+            assembly_type=function_goal if function_goal else "semi_permanent",
+            wall_thickness_mm=2.0,
+            catch_depth_mm=0.5,
         )
 
         if split_mode:
