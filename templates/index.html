@@ -343,7 +343,31 @@
                 </div>
             </div>
         `;
-    }
+      }
+
+      if (data.placement && data.placement.recommended_placements.length > 0) {
+        html += `<h2>Optimal Snap Placement</h2>`;
+        data.placement.recommended_placements.forEach((p, i) => {
+            html += `
+                <div class="card">
+                    <div class="card-header">
+                        <span class="rank">#${i + 1}</span>
+                        <h3>Placement Point</h3>
+                    </div>
+                    <p>
+                        Location: (${p.point.map(v => Math.round(v * 100) / 100).join(', ')}) &nbsp;|&nbsp;
+                        Wall thickness: ${p.wall_thickness_mm}mm &nbsp;|&nbsp;
+                        Score: ${p.score}
+                    </p>
+                    <div class="fusion-steps">
+                        Arm length: ${p.computed_dimensions.arm_length_mm}mm &nbsp;|&nbsp;
+                        Root thickness: ${p.computed_dimensions.root_thickness_mm}mm &nbsp;|&nbsp;
+                        Deflection capacity: ${p.computed_dimensions.deflection_capacity_mm}mm
+                    </div>
+                </div>
+            `;
+        });
+      }
 
       if (data.validation && data.validation.snap_features_detected > 0) {
         html += `<h2>Snap Feature Validation</h2>`;

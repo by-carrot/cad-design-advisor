@@ -17,6 +17,8 @@ from src.geometry.snap_validator import validate_mesh_snaps
 from src.modification.snap_corrector import correct_snap_violations
 from src.geometry.assembly_checker import check_assembly
 
+from src.geometry.placement_optimizer import optimize_snap_placement
+
 
 
 app = FastAPI()
@@ -39,7 +41,6 @@ class DesignRequest(BaseModel):
     volume: int
     budget_tier: str
     material: str
-    function_goal: str = Form("semi_permanent"),
 
 
 @app.post("/recommend")
@@ -107,6 +108,7 @@ async def analyze(
     volume: int = Form(...),
     budget_tier: str = Form(...),
     material: str = Form(...),
+    function_goal: str = Form("semi_permanent"),
 ):
     upload_dir = Path("uploads")
     upload_dir.mkdir(exist_ok=True)
@@ -180,17 +182,43 @@ async def analyze(
     generated_geometry = None
     validation_result = None
     correction_result = None
+    placement_result = None
 
     if recommended_surface:
+        if split_mode:
+            placement_mesh = split_result["main_body"]["mesh"]
+        else:
+            placement_mesh = trimesh.load(str(input_path))
+            if isinstance(placement_mesh, trimesh.Scene):
+                placement_mesh = trimesh.util.concatenate(placement_mesh.dump())
+
+        placement_result = optimize_snap_placement(
+            mesh=placement_mesh,
+            parting_face=recommended_surface,
+            material=material,
+            assembly_type=function_goal if function_goal else "semi_permanent",
+            catch_depth_mm=0.5,
+            n_snaps=4,
+            n_candidates=16,
+        )
+
+        top_placement = placement_result["recommended_placements"][0] if placement_result["recommended_placements"] else None
+        snap_surface = dict(recommended_surface)
+        if top_placement:
+            snap_surface["centroid"] = top_placement["point"]
+            wall_thickness = top_placement["wall_thickness_mm"]
+        else:
+            wall_thickness = 2.0
+
         output_path = str(output_dir / f"{file_id}_{top_pattern['id']}.stl")
         generated_geometry = generate_snap_for_surface(
             pattern_id=top_pattern["id"],
-            surface=recommended_surface,
+            surface=snap_surface,
             geometry_params=top_pattern["geometry_params"],
             output_path=output_path,
             material=material,
             assembly_type=function_goal if function_goal else "semi_permanent",
-            wall_thickness_mm=2.0,
+            wall_thickness_mm=wall_thickness,
             catch_depth_mm=0.5,
         )
 
@@ -236,6 +264,7 @@ async def analyze(
         "volume": volume,
         "budget_tier": budget_tier,
         "material": material,
+        "function_goal": function_goal if function_goal else "semi_permanent",
     }
 
     interpretation = interpret(request_dict, patterns)
@@ -247,6 +276,7 @@ async def analyze(
         "patterns": patterns,
         "interpretation": interpretation,
         "generated_geometry": generated_geometry,
+        "placement": placement_result,
         "validation": validation_result,
         "correction": correction_result,
         "assembly_check": assembly_check,
