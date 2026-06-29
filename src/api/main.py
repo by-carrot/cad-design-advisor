@@ -18,6 +18,7 @@ from src.modification.snap_corrector import correct_snap_violations
 from src.geometry.assembly_checker import check_assembly
 
 from src.geometry.placement_optimizer import optimize_snap_placement
+from src.modification.snap_generator import generate_snaps_for_placements
 
 
 
@@ -222,6 +223,18 @@ async def analyze(
             catch_depth_mm=0.5,
         )
 
+        all_snap_geometries = generate_snaps_for_placements(
+            pattern_id=top_pattern["id"],
+            placements=placement_result["recommended_placements"],
+            geometry_params=top_pattern["geometry_params"],
+            output_dir=str(output_dir),
+            file_id=file_id,
+            material=material,
+            assembly_type=function_goal if function_goal else "semi_permanent",
+            catch_depth_mm=0.5,
+            face_normal=recommended_surface.get("normal", [0, 0, 1]),
+        )
+
         if split_mode:
             body_mesh = split_result["main_body"]["mesh"]
         else:
@@ -276,6 +289,7 @@ async def analyze(
         "patterns": patterns,
         "interpretation": interpretation,
         "generated_geometry": generated_geometry,
+        "all_snap_geometries": all_snap_geometries,
         "placement": placement_result,
         "validation": validation_result,
         "correction": correction_result,

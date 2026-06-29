@@ -70,16 +70,31 @@ def generate_annular_snap(
     bead_radius_mm: float,
     wall_thickness_mm: float,
     placement_point: list[float],
+    undercut_angle_deg: float = 45.0,
 ) -> cq.Workplane:
     outer_radius = diameter_mm / 2
     inner_radius = outer_radius - wall_thickness_mm
 
+    bead_tip_r = outer_radius + bead_height_mm
+    bead_base_r = outer_radius
+
+    undercut_rad = np.radians(undercut_angle_deg)
+    bead_depth = bead_radius_mm * 2
+
+    profile_pts = [
+        (inner_radius, 0),
+        (inner_radius, bead_depth),
+        (bead_base_r, bead_depth),
+        (bead_tip_r, bead_depth / 2),
+        (bead_base_r, 0),
+    ]
+
     ring = (
         cq.Workplane("XY")
         .transformed(offset=cq.Vector(*placement_point))
-        .circle(outer_radius + bead_height_mm)
-        .circle(inner_radius)
-        .extrude(bead_radius_mm * 2)
+        .polyline(profile_pts)
+        .close()
+        .revolve(360, (0, 0, 0), (0, 1, 0))
     )
 
     return ring
@@ -152,3 +167,35 @@ def generate_snap_for_surface(
         "face_normal": face_normal,
         "computed_dimensions": computed_dims,
     }
+
+def generate_snaps_for_placements(
+    pattern_id: str,
+    placements: list[dict],
+    geometry_params: dict,
+    output_dir: str,
+    file_id: str,
+    material: str = "ABS",
+    assembly_type: str = "semi_permanent",
+    catch_depth_mm: float = 0.5,
+    face_normal: list[float] = None,
+) -> list[dict]:
+    results = []
+    for i, placement in enumerate(placements):
+        surface = {
+            "centroid": placement["point"],
+            "normal": face_normal or [0, 0, 1],
+        }
+        output_path = f"{output_dir}/{file_id}_{pattern_id}_snap_{i}.stl"
+        result = generate_snap_for_surface(
+            pattern_id=pattern_id,
+            surface=surface,
+            geometry_params=geometry_params,
+            output_path=output_path,
+            material=material,
+            assembly_type=assembly_type,
+            wall_thickness_mm=placement.get("wall_thickness_mm", 2.0),
+            catch_depth_mm=catch_depth_mm,
+        )
+        if "error" not in result:
+            results.append(result)
+    return results

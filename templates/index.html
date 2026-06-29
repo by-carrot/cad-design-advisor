@@ -177,28 +177,7 @@
     function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
 
-    window.loadSTLIntoViewer = function(url) {
-      fetch(url)
-        .then(r => r.arrayBuffer())
-        .then(buffer => {
-          const geo = parseSTL(buffer);
-          scene.children = scene.children.filter(c => c.type !== 'Mesh');
-          scene.add(ambient);
-          scene.add(dirLight);
-          const mat = new THREE.MeshStandardMaterial({ color: 0x4a9eff, metalness: 0.1, roughness: 0.6 });
-          const mesh = new THREE.Mesh(geo, mat);
-          scene.add(mesh);
-          geo.computeBoundingBox();
-          const box = geo.boundingBox;
-          const center = new THREE.Vector3();
-          box.getCenter(center);
-          mesh.position.sub(center);
-          const size = new THREE.Vector3();
-          box.getSize(size);
-          spherical.radius = Math.max(size.x, size.y, size.z) * 2;
-          updateCamera();
-        });
-    };
+    const SNAP_COLORS = [0x4a9eff, 0xff6b6b, 0x88cc88, 0xffaa44];
 
     function parseSTL(buffer) {
       const geo = new THREE.BufferGeometry();
@@ -225,6 +204,39 @@
       geo.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
       return geo;
     }
+
+    function clearSnapMeshes() {
+      scene.children = scene.children.filter(c => !c.userData.isSnap);
+    }
+
+    window.clearViewer = function() {
+      clearSnapMeshes();
+    };
+
+    window.addSTLToViewer = function(url, index) {
+      const color = SNAP_COLORS[index % SNAP_COLORS.length];
+      fetch(url)
+        .then(r => r.arrayBuffer())
+        .then(buffer => {
+          const geo = parseSTL(buffer);
+          const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.6 });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.userData.isSnap = true;
+          scene.add(mesh);
+
+          geo.computeBoundingBox();
+          const box = geo.boundingBox;
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          spherical.radius = Math.max(spherical.radius, Math.max(size.x, size.y, size.z) * 2);
+          updateCamera();
+        });
+    };
+
+    window.loadSTLIntoViewer = function(url) {
+      clearSnapMeshes();
+      window.addSTLToViewer(url, 0);
+    };
   </script>
 
   <script>
@@ -267,7 +279,13 @@
 
         renderResults(data);
 
-        if (data.generated_geometry && data.generated_geometry.output_file) {
+        if (data.all_snap_geometries && data.all_snap_geometries.length > 0) {
+          window.clearViewer();
+          data.all_snap_geometries.forEach((g, i) => {
+            const filename = g.output_file.replace(/\\/g, '/').split('/').pop();
+            window.addSTLToViewer(`/outputs/${filename}`, i);
+          });
+        } else if (data.generated_geometry && data.generated_geometry.output_file) {
           const filename = data.generated_geometry.output_file.replace(/\\/g, '/').split('/').pop();
           window.loadSTLIntoViewer(`/outputs/${filename}`);
         }
