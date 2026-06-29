@@ -357,6 +357,23 @@
         window.loadSTLIntoViewer(`/outputs/${corrFilename}`);
     }
 
+    if (data.assembly_check) {
+            const ac = data.assembly_check;
+            const status = ac.assembly_compatible ? '✓ Compatible' : '✗ Issues Found';
+            const statusColor = ac.assembly_compatible ? '#88cc88' : '#ff6b6b';
+            html += `
+                <h2>Assembly Compatibility</h2>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="rank" style="background:${statusColor}22;color:${statusColor}">${status}</span>
+                        <h3>Mating Face Check</h3>
+                    </div>
+                    <p>XY offset: ${ac.face_alignment.xy_offset_mm}mm &nbsp;|&nbsp; Z gap: ${ac.face_alignment.z_gap_mm}mm &nbsp;|&nbsp; Area ratio: ${ac.face_alignment.area_ratio}</p>
+                    ${ac.issues.map(i => `<div class="risk">⚠ ${i}</div>`).join('')}
+                </div>
+            `;
+        }
+
     document.getElementById('results').innerHTML = html;
   }
   </script>

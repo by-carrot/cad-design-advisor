@@ -15,6 +15,7 @@ from src.geometry.mesh_analyzer import split_bodies, detect_parting_line
 
 from src.geometry.snap_validator import validate_mesh_snaps
 from src.modification.snap_corrector import correct_snap_violations
+from src.geometry.assembly_checker import check_assembly
 
 
 
@@ -213,6 +214,17 @@ async def analyze(
                     output_path=correction_path,
                 )
 
+        assembly_check = None
+        if split_mode and "error" not in parting_line:
+            assembly_check = check_assembly(
+                body_mesh=body_mesh,
+                cap_mesh=cap_mesh,
+                body_parting_face=parting_line["body_parting_face"],
+                cap_parting_face=parting_line["cap_parting_face"],
+                pattern_id=top_pattern["id"],
+                material=material,
+            )
+
     request_dict = {
         "product_type": product_type,
         "production_method": production_method,
@@ -232,4 +244,5 @@ async def analyze(
         "generated_geometry": generated_geometry,
         "validation": validation_result,
         "correction": correction_result,
+        "assembly_check": assembly_check,
     }
